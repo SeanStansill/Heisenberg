@@ -32,27 +32,13 @@ int main() {
     M = magnetization(theta, phi);
 
     write_M(M);
+    E = total_energy(theta, phi, near_n);
+    e_squared = sum_squares(theta, phi, near_n);
+    write_E(E);
+    write_E2(e_squared);
 
 
     int i, j, k;
-    for (int a = 0; a < nsteps; a++) {
-        i = uniform_distribution(mt) % L;
-        j = uniform_distribution(mt) % L;
-        k = uniform_distribution(mt) % L;
-
-        E1 = local_energy(i, j, k, theta, phi, near_n);
-
-        theta_trial[i][j][k] = r_angle(mt);
-        phi_trial[i][j][k] = r_angle(mt);
-
-        E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
-
-        dE = E2 - E1;
-        if (decimal(mt) <= exp(std::min(0.0, ((-J / (k_B * T)) * dE)))) {
-            theta[i][j][k] = theta_trial[i][j][k];
-            phi[i][j][k] = phi_trial[i][j][k];
-        }
-    }
 
     //MC loops inside a loop that varies temperature
     for(int b = 0; b < T_intervals; b++) {
@@ -69,7 +55,7 @@ int main() {
             E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
 
             dE = E2 - E1;
-            if(decimal(mt) <= exp(std::min(0.0, ((-J/(k_B*T)) * dE)))){
+            if(decimal(mt) <= exp(std::min(0.0, (((-J)/(k_B*T)) * dE)))){
                 theta[i][j][k] = theta_trial[i][j][k];
                 phi[i][j][k] = phi_trial[i][j][k];
             }
@@ -78,10 +64,11 @@ int main() {
         //calculate and output the magnetisation after every set of MC loops
         M = magnetization(theta, phi);
         E = total_energy(theta, phi, near_n);
-        //e_squared = sum_squares(theta, phi, near_n);
+        e_squared = sum_squares(theta, phi, near_n);
         write_E(E);
+        write_E2(e_squared);
 
-        C = heat_cap(theta, phi, near_n, T);
+        C = heat_cap(E, e_squared, T);
 
         write_C(C);
 
