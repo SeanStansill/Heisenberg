@@ -8,8 +8,8 @@
 
 int main() {
     //Initialize variables
-    double theta[N][N][N], phi[N][N][N], theta_trial[N][N][N] = {}, phi_trial[N][N][N] = {}, E, T = T_init, e_squared, C, E1, E2, dE;
-    int near_n[N][2];
+    double theta[L][L][L], phi[L][L][L], theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {}, E, T = T_init, e_squared, C, E1, E2, dE;
+    int near_n[L][2];
     std::vector<double> M;
 
     //Seed rng
@@ -36,9 +36,9 @@ int main() {
 
     int i, j, k;
     for (int a = 0; a < nsteps; a++) {
-        i = uniform_distribution(mt) % N;
-        j = uniform_distribution(mt) % N;
-        k = uniform_distribution(mt) % N;
+        i = uniform_distribution(mt) % L;
+        j = uniform_distribution(mt) % L;
+        k = uniform_distribution(mt) % L;
 
         E1 = local_energy(i, j, k, theta, phi, near_n);
 
@@ -57,9 +57,9 @@ int main() {
     //MC loops inside a loop that varies temperature
     for(int b = 0; b < T_intervals; b++) {
         for (int a = 0; a < nsteps; a++) {
-            i = uniform_distribution(mt) % N;
-            j = uniform_distribution(mt) % N;
-            k = uniform_distribution(mt) % N;
+            i = uniform_distribution(mt) % L;
+            j = uniform_distribution(mt) % L;
+            k = uniform_distribution(mt) % L;
 
             E1 = local_energy(i, j, k, theta, phi, near_n);
 
