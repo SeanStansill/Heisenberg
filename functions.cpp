@@ -133,6 +133,8 @@ double sum_squares(double theta[L][L][L], double phi[L][L][L], int near_n[L][2])
                     double E_1 = 0.0;
                     double E_2 = 0.0;
                     double E_3 = 0.0;
+                    //Need three energy terms so that all 6 nearest neighbours aren't being summed before squaring
+                    // ie ensuring (\sum_{1, j=1}^{6} E)^2 is not the calculation being done
 
                     E_1 += cos(theta[l][m][n]) * sin(phi[l][m][n]) * cos(theta[near_n[l][o]][m][n]) * sin(phi[near_n[l][o]][m][n]);
                     E_1 += (sin(theta[l][m][n]) * sin(phi[l][m][n])) * (sin(theta[near_n[l][o]][m][n]) * sin(phi[near_n[l][o]][m][n]));
