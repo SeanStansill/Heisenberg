@@ -104,7 +104,6 @@ double local_energy(int i, int j, int k, double theta[L][L][L], double phi[L][L]
         e += ((-J)/L)*(cos(phi[i][j][k]) * cos(phi[i][near_n[j][o]][k]));
         e += ((-J)/L)*(cos(phi[i][j][k]) * cos(phi[i][j][near_n[k][o]]));
     }
-    //e *= (1 / N) * (-J);
     return e;
 }
 double new_local_energy(int i, int j, int k, double theta[L][L][L], double phi[L][L][L], int near_n[L][2], double t1[L][L][L] = {}, double t2[L][L][L] = {}){
@@ -120,47 +119,13 @@ double new_local_energy(int i, int j, int k, double theta[L][L][L], double phi[L
         e += ((-J)/L)*(cos(t2[i][j][k]) * cos(phi[i][near_n[j][o]][k]));
         e += ((-J)/L)*(cos(t2[i][j][k]) * cos(phi[i][j][near_n[k][o]]));
     }
-    //e *= (1 / N) * (-J);
     return e;
 }
 
-double sum_squares(double theta[L][L][L], double phi[L][L][L], int near_n[L][2]){
-    double e_squared = 0.0;
-    for (int l = 0; l < L; l++) {
-        for (int m = 0; m < L; m++) {
-            for (int n = 0; n < L; n++) {
-                for(int o = 0; o < 2; o++) {
-                    double E_1 = 0.0;
-                    double E_2 = 0.0;
-                    double E_3 = 0.0;
-                    //Need three energy terms so that all 6 nearest neighbours aren't being summed before squaring
-                    // ie ensuring (\sum_{1, j=1}^{6} E)^2 is not the calculation being done
-
-                    E_1 += cos(theta[l][m][n]) * sin(phi[l][m][n]) * cos(theta[near_n[l][o]][m][n]) * sin(phi[near_n[l][o]][m][n]);
-                    E_1 += (sin(theta[l][m][n]) * sin(phi[l][m][n])) * (sin(theta[near_n[l][o]][m][n]) * sin(phi[near_n[l][o]][m][n]));
-                    E_1 += cos(phi[l][m][n]) * cos(phi[near_n[l][o]][m][n]);
-
-                    E_2 += cos(theta[l][m][n]) * sin(phi[l][m][n]) * cos(theta[l][near_n[m][o]][n]) * sin(phi[l][near_n[m][o]][n]);
-                    E_2 += (sin(theta[l][m][n]) * sin(phi[l][m][n])) * (sin(theta[l][near_n[m][o]][n]) * sin(phi[l][near_n[m][o]][n]));
-                    E_2 += cos(phi[l][m][n]) * cos(phi[l][near_n[m][o]][n]);
-
-                    E_3 += cos(theta[l][m][n]) * sin(phi[l][m][n]) * cos(theta[l][m][near_n[n][o]]) * sin(phi[l][m][near_n[n][o]]);
-                    E_3 += (sin(theta[l][m][n]) * sin(phi[l][m][n])) * (sin(theta[l][m][near_n[n][o]]) * sin(phi[l][m][near_n[n][o]]));
-                    E_3 += cos(phi[l][m][n]) * cos(phi[l][m][near_n[n][o]]);
-
-                    e_squared += (E_1*E_1) + (E_2*E_2) + (E_3*E_3);
-                }
-            }
-        }
-    }
-    e_squared *= ((-J)/N)*((-J)/N);
-    return e_squared;
-}
-
-double heat_cap(double E, double e_squared, double T){ //(double theta[L][L][L], double phi[L][L][L], int near_n[L][2], double T){  //
+double heat_cap(double sum, double sq_sum, double T){ //(double theta[L][L][L], double phi[L][L][L], int near_n[L][2], double T){  //
     //double E = total_energy(theta, phi, near_n);
     //double e_squared = sum_squares(theta, phi, near_n);
-    double C = (e_squared - (E*E))/(k_B*T*T);
+    double C = (sq_sum - (sum*sum))/(k_B*T*T);
     return C;
 }
 
@@ -187,13 +152,6 @@ void write_E(double E){
     std::ofstream myfile;
     myfile.open("energy.txt", std::ios::app);
     myfile << E << std::endl;
-    myfile.close();
-}
-
-void write_E2(double e_squared){
-    std::ofstream myfile;
-    myfile.open("energy_squared.txt", std::ios::app);
-    myfile << e_squared << std::endl;
     myfile.close();
 }
 

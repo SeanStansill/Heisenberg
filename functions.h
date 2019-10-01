@@ -13,7 +13,5 @@ void write_M(std::vector<double> M);
 void write_E(double E);
 void write_T(double T);
 void write_C(double C);
-double sum_squares(double theta[L][L][L], double phi[L][L][L], int near_n[L][2]);
-void write_E2(double e_squared);
-double heat_cap(double E, double e_squared, double T);
+double heat_cap(double sum, double sq_sum, double T);
 //double heat_cap(double theta[L][L][L], double phi[L][L][L], int near_n[L][2], double T);
