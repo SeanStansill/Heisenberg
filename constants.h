@@ -2,7 +2,7 @@
 // Created by Sean Stansill [ll14s26s] on 25/09/2019.
 //
 
-const int L = 4;
+const int L = 50;
 const int nsteps = 10000;
 const double J = 1.0;
 const double k_B = 1.0;
