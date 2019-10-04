@@ -1,6 +1,7 @@
 
 #include "constants.h"
 #include "functions.h"
+#include <vector>
 
 int main() {
 
@@ -12,6 +13,7 @@ int main() {
     //random_spin_state(theta, phi);
     uniform_spin_state(theta, phi);
 
+
     magnetization(theta, phi, Mx, My, Mz);
     write_M(Mx, My, Mz);
 
@@ -19,7 +21,7 @@ int main() {
     write_E(E);
 
 
-    for(int b = 0; b < T_intervals; b++) {
+    for (int b = 0; b < T_intervals; b++) {
         thermalize(theta, phi, near_n, T);
         MC_loop(theta, phi, near_n, T, E, E_sum, E_sumsquares);
 
@@ -27,6 +29,7 @@ int main() {
         write_C(C);
 
         magnetization(theta, phi, Mx, My, Mz);
+        write_M(Mx, My, Mz);
 
         total_energy(theta, phi, near_n, E);
         write_E(E);
