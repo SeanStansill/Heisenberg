@@ -240,8 +240,3 @@ void write_C(const double C){
     myfile << C << std::endl;
     myfile.close();
 }
-
-void binder_M(){
-    double b;
-    b = 1 - (<M^4>/(3*<M^2>^2));
-}
