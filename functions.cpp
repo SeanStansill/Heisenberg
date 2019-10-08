@@ -4,13 +4,13 @@
 #include <iostream>
 #include <random>
 #include"constants.h"
-#include <fstream>
 #include <cmath>
 #include <algorithm>
 
 std::random_device generator;
 std::mt19937 rng(generator());
 std::ofstream myfile;
+
 
 void write_E(const double E) {
     myfile.open("energy.txt", std::ios::app);
@@ -88,62 +88,100 @@ void magnetization(double theta[L][L][L], double phi[L][L][L], double &Mx, doubl
     Mz = (Mz/N);
 }
 
+
+double local_energy(const int i, const int j, const int k, const double theta[L][L][L], const double phi[L][L][L], const int near_n[L][2]){
+    double e = 0.0;
+    for(int o = 0; o<2; o++) {
+        e += (cos(theta[i][j][k]) * sin(phi[i][j][k]) * cos(theta[near_n[i][o]][j][k]) * sin(phi[near_n[i][o]][j][k]));
+        e += (cos(theta[i][j][k]) * sin(phi[i][j][k]) * cos(theta[i][near_n[j][o]][k]) * sin(phi[i][near_n[j][o]][k]));
+        e += (cos(theta[i][j][k]) * sin(phi[i][j][k]) * cos(theta[i][j][near_n[k][o]]) * sin(phi[i][j][near_n[k][o]]));
+        e += ((sin(theta[i][j][k]) * sin(phi[i][j][k])) * (sin(theta[near_n[i][o]][j][k]) * sin(phi[near_n[i][o]][j][k])));
+        e += ((sin(theta[i][j][k]) * sin(phi[i][j][k])) * (sin(theta[i][near_n[j][o]][k]) * sin(phi[i][near_n[j][o]][k])));
+        e += ((sin(theta[i][j][k]) * sin(phi[i][j][k])) * (sin(theta[i][j][near_n[k][o]]) * sin(phi[i][j][near_n[k][o]])));
+        e += (cos(phi[i][j][k]) * cos(phi[near_n[i][o]][j][k]));
+        e += (cos(phi[i][j][k]) * cos(phi[i][near_n[j][o]][k]));
+        e += (cos(phi[i][j][k]) * cos(phi[i][j][near_n[k][o]]));
+    }
+    return e * -J;
+}
+double new_local_energy(const int i, const int j, const int k, const double theta[L][L][L], const double phi[L][L][L], const int near_n[L][2], const double t1[L][L][L] = {}, const double t2[L][L][L] = {}){
+    double e1 = 0.0;
+    for(int o = 0; o<2; o++) {
+        e1 += (cos(t1[i][j][k]) * sin(t2[i][j][k]) * cos(theta[near_n[i][o]][j][k]) * sin(phi[near_n[i][o]][j][k]));
+        e1 += (cos(t1[i][j][k]) * sin(t2[i][j][k]) * cos(theta[i][near_n[j][o]][k]) * sin(phi[i][near_n[j][o]][k]));
+        e1 += (cos(t1[i][j][k]) * sin(t2[i][j][k]) * cos(theta[i][j][near_n[k][o]]) * sin(phi[i][j][near_n[k][o]]));
+        e1 += ((sin(t1[i][j][k]) * sin(t2[i][j][k])) * (sin(theta[near_n[i][o]][j][k]) * sin(phi[near_n[i][o]][j][k])));
+        e1 += ((sin(t1[i][j][k]) * sin(t2[i][j][k])) * (sin(theta[i][near_n[j][o]][k]) * sin(phi[i][near_n[j][o]][k])));
+        e1 += ((sin(t1[i][j][k]) * sin(t2[i][j][k])) * (sin(theta[i][j][near_n[k][o]]) * sin(phi[i][j][near_n[k][o]])));
+        e1 += (cos(t2[i][j][k]) * cos(phi[near_n[i][o]][j][k]));
+        e1 += (cos(t2[i][j][k]) * cos(phi[i][near_n[j][o]][k]));
+        e1 += (cos(t2[i][j][k]) * cos(phi[i][j][near_n[k][o]]));
+    }
+    return e1*-J;
+}
+
 void total_energy(const double theta[L][L][L], const double phi[L][L][L], const int near_n[L][2], double &E) {
     E = 0.0;
     for (int l = 0; l < L; l++) {
         for (int m = 0; m < L; m++) {
             for (int n = 0; n < L; n++) {
-                for (int o = 0; o < 2; o++) {
 
-                    E += (cos(theta[l][m][n]) * sin(phi[l][m][n])) * (cos(theta[near_n[l][o]][m][n]) * sin(phi[near_n[l][o]][m][n]));
-                    E += cos(theta[l][m][n]) * sin(phi[l][m][n]) * cos(theta[l][near_n[m][o]][n]) * sin(phi[l][near_n[m][o]][n]);
-                    E += cos(theta[l][m][n]) * sin(phi[l][m][n]) * cos(theta[l][m][near_n[n][o]]) * sin(phi[l][m][near_n[n][o]]);
-                    E += (sin(theta[l][m][n]) * sin(phi[l][m][n])) * (sin(theta[near_n[l][o]][m][n]) * sin(phi[near_n[l][o]][m][n]));
-                    E += (sin(theta[l][m][n]) * sin(phi[l][m][n])) * (sin(theta[l][near_n[m][o]][n]) * sin(phi[l][near_n[m][o]][n]));
-                    E += (sin(theta[l][m][n]) * sin(phi[l][m][n])) * (sin(theta[l][m][near_n[n][o]]) * sin(phi[l][m][near_n[n][o]]));
-                    E += cos(phi[l][m][n]) * cos(phi[near_n[l][o]][m][n]);
-                    E += cos(phi[l][m][n]) * cos(phi[l][near_n[m][o]][n]);
-                    E += cos(phi[l][m][n]) * cos(phi[l][m][near_n[n][o]]);
-                }
+                    E+= local_energy(l, m, n, theta, phi, near_n);
             }
         }
     }
-    E *= ((-J) / N);
-}
-
-double local_energy(const int i, const int j, const int k, const double theta[L][L][L], const double phi[L][L][L], const int near_n[L][2]){
-    double e = 0.0;
-    for(int o = 0; o<2; o++) {
-        e += ((-J)/L)*(cos(theta[i][j][k]) * sin(phi[i][j][k]) * cos(theta[near_n[i][o]][j][k]) * sin(phi[near_n[i][o]][j][k]));
-        e += ((-J)/L)*(cos(theta[i][j][k]) * sin(phi[i][j][k]) * cos(theta[i][near_n[j][o]][k]) * sin(phi[i][near_n[j][o]][k]));
-        e += ((-J)/L)*(cos(theta[i][j][k]) * sin(phi[i][j][k]) * cos(theta[i][j][near_n[k][o]]) * sin(phi[i][j][near_n[k][o]]));
-        e += ((-J)/L)*((sin(theta[i][j][k]) * sin(phi[i][j][k])) * (sin(theta[near_n[i][o]][j][k]) * sin(phi[near_n[i][o]][j][k])));
-        e += ((-J)/L)*((sin(theta[i][j][k]) * sin(phi[i][j][k])) * (sin(theta[i][near_n[j][o]][k]) * sin(phi[i][near_n[j][o]][k])));
-        e += ((-J)/L)*((sin(theta[i][j][k]) * sin(phi[i][j][k])) * (sin(theta[i][j][near_n[k][o]]) * sin(phi[i][j][near_n[k][o]])));
-        e += ((-J)/L)*(cos(phi[i][j][k]) * cos(phi[near_n[i][o]][j][k]));
-        e += ((-J)/L)*(cos(phi[i][j][k]) * cos(phi[i][near_n[j][o]][k]));
-        e += ((-J)/L)*(cos(phi[i][j][k]) * cos(phi[i][j][near_n[k][o]]));
-    }
-    return e;
-}
-double new_local_energy(const int i, const int j, const int k, const double theta[L][L][L], const double phi[L][L][L], const int near_n[L][2], const double t1[L][L][L] = {}, const double t2[L][L][L] = {}){
-    double e = 0.0;
-    for(int o = 0; o<2; o++) {
-        e += ((-J)/L)*(cos(t1[i][j][k]) * sin(t2[i][j][k]) * cos(theta[near_n[i][o]][j][k]) * sin(phi[near_n[i][o]][j][k]));
-        e += ((-J)/L)*(cos(t1[i][j][k]) * sin(t2[i][j][k]) * cos(theta[i][near_n[j][o]][k]) * sin(phi[i][near_n[j][o]][k]));
-        e += ((-J)/L)*(cos(t1[i][j][k]) * sin(t2[i][j][k]) * cos(theta[i][j][near_n[k][o]]) * sin(phi[i][j][near_n[k][o]]));
-        e += ((-J)/L)*((sin(t1[i][j][k]) * sin(t2[i][j][k])) * (sin(theta[near_n[i][o]][j][k]) * sin(phi[near_n[i][o]][j][k])));
-        e += ((-J)/L)*((sin(t1[i][j][k]) * sin(t2[i][j][k])) * (sin(theta[i][near_n[j][o]][k]) * sin(phi[i][near_n[j][o]][k])));
-        e += ((-J)/L)*((sin(t1[i][j][k]) * sin(t2[i][j][k])) * (sin(theta[i][j][near_n[k][o]]) * sin(phi[i][j][near_n[k][o]])));
-        e += ((-J)/L)*(cos(t2[i][j][k]) * cos(phi[near_n[i][o]][j][k]));
-        e += ((-J)/L)*(cos(t2[i][j][k]) * cos(phi[i][near_n[j][o]][k]));
-        e += ((-J)/L)*(cos(t2[i][j][k]) * cos(phi[i][j][near_n[k][o]]));
-    }
-    return e;
 }
 
 void heat_cap(double &C, const double E_sum, const double E_sumsquares, const double T){
     C = (E_sumsquares - (E_sum*E_sum))/(k_B*T*T);
+}
+
+void thermalize_stat(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &sigma, double &E, double &E_sum, double &E_sumsquares){
+    E_sum = 0.0;
+    E_sumsquares = 0.0;
+    int i, j, k;
+    int counter = 0;
+    sigma = 1.0;
+    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
+    while(sigma/(N*counter) > 0.01){
+        for(int l = 0; l < 500; l++) {
+            i = random_index() % L;
+            j = random_index() % L;
+            k = random_index() % L;
+
+            E1 = local_energy(i, j, k, theta, phi, near_n);
+
+            theta_trial[i][j][k] = random_ZeroTwo() * pi;
+            phi_trial[i][j][k] = random_decimal() * pi;
+
+            E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
+
+            dE = E2 - E1;
+            if (random_decimal() <= exp(std::min(0.0, (((-J) / (k_B * T)) * dE)))) {
+                theta[i][j][k] = theta_trial[i][j][k];
+                phi[i][j][k] = phi_trial[i][j][k];
+            }
+
+            total_energy(theta, phi, near_n, E);
+            E_sum += E;
+            E_sumsquares += (E * E);
+
+            sigma = E_sumsquares - (E_sum * E_sum);
+
+            if (sigma < 0.0) {
+                sigma = -sigma;
+            }
+
+            counter++;
+            l++;
+        }
+        myfile.open("counter.txt", std::ios::app);
+        myfile << counter << std::endl;
+        myfile.close();
+        myfile.open("sigma.txt", std::ios::app);
+        myfile << sigma/(N*counter) << std::endl;
+        myfile.close();
+    }
 }
 
 void thermalize(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T){
@@ -156,8 +194,8 @@ void thermalize(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near
 
         E1 = local_energy(i, j, k, theta, phi, near_n);
 
-        theta_trial[i][j][k] = random_ZeroTwo() * pi;
-        phi_trial[i][j][k] = random_ZeroTwo() * pi;
+        theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
+        phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal() * pi);
 
         E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
 
@@ -181,24 +219,20 @@ void MC_loop(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[
 
         E1 = local_energy(i, j, k, theta, phi, near_n);
 
-        theta_trial[i][j][k] = theta[i][j][k] + (0.01 * random_ZeroTwo() * pi);
-        phi_trial[i][j][k] = phi[i][j][k] + (0.01 * random_ZeroTwo() * pi);
+        theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
+        phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal() * pi);
 
-        //theta_trial[i][j][k] = random_ZeroTwo() * pi;
-        //phi_trial[i][j][k] = random_ZeroTwo() * pi;
+
 
         E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
 
         dE = E2 - E1;
-        if(random_decimal() <= exp(std::min(0.0, (((-J)/(k_B*T)) * dE)))){
+        if(random_decimal() <= exp(std::min(0.0, -dE/T))){
             theta[i][j][k] = theta_trial[i][j][k];
             phi[i][j][k] = phi_trial[i][j][k];
         }
 
-        //total_energy(theta, phi, near_n, E);
-        //write_E(E);
-
-        if(a % 10 == 0) {
+        if(a % 5 == 0) {
             total_energy(theta, phi, near_n, E);
             E_sum += E;
             E_sumsquares += (E * E);
@@ -240,3 +274,123 @@ void write_C(const double C){
     myfile << C << std::endl;
     myfile.close();
 }
+
+void write_Corr(const double &Corr){
+    myfile.open("correlation.txt", std::ios::app);
+    myfile << Corr << std::endl;
+    myfile.close();
+}
+
+void thermal_lattice(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T) {
+    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
+    for (int a = 0; a < latticesweeps; a++) {
+        for (int l = 0; l < L; l++) {
+            for (int m = 0; m < L; m++) {
+                for (int n = 0; n < L; n++) {
+
+                    E1 = local_energy(l, m, n, theta, phi, near_n);
+
+                    theta_trial[l][m][n] = theta[l][m][n] + (0.05 * random_ZeroTwo() * pi);
+                    phi_trial[l][m][n] = phi[l][m][n] + (0.05 * random_decimal() * pi);
+
+                    E2 = new_local_energy(l, m, n, theta, phi, near_n, theta_trial, phi_trial);
+
+                    dE = E2 - E1;
+                    if (random_decimal() <= exp(std::min(0.0, (((-J) / (k_B * T)) * dE)))) {
+                        theta[l][m][n] = theta_trial[l][m][n];
+                        phi[l][m][n] = phi_trial[l][m][n];
+                    }
+                }
+            }
+        }
+    }
+}
+
+void MC_loopautocorr(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &E, double &E_sum, double &E_sumsquares, double &E_initial, double (&zero_timeE)[steps], double (&timeE)[steps], double &ExpectationZero_T, double &Corr) {
+    E_sum = 0.0;
+    E_sumsquares = 0.0;
+    Corr = 10.0;
+    total_energy(theta, phi, near_n, E);
+    int i, j, k;
+
+    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
+    while (Corr > (1.0 /(exp1))) {
+        for (int a = 0; a < steps; a++) {
+            i = random_index() % L;
+            j = random_index() % L;
+            k = random_index() % L;
+
+            E1 = local_energy(i, j, k, theta, phi, near_n);
+
+            theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
+            phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal() * pi);
+
+
+            E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
+
+            dE = E2 - E1;
+            if (random_decimal() <= exp(std::min(0.0, (-dE/T)))){
+                theta[i][j][k] = theta_trial[i][j][k];
+                phi[i][j][k] = phi_trial[i][j][k];
+            }
+
+            total_energy(theta, phi, near_n, E);
+            E_sum += E;
+            E_sumsquares += (E*E);
+            timeE[a] = E;
+        }
+        ExpectationZero_T = 0.0;
+        for(int l = 0; l < steps; l++){
+        ExpectationZero_T += (timeE[l]*zero_timeE[l]);
+        }
+        Corr = ((ExpectationZero_T) - (E_initial*E_sum))/(E_sumsquares - (E_sum*E_sum));
+        /*E_initial = E_sum;
+        E_sum = 0.0;
+        E_sumsquares = 0.0;
+        for(int l = 0; l < steps; l++) {
+            zero_timeE[l] = timeE[l];
+        }*/
+        write_Corr(Corr);
+    }
+}
+
+void initial_corr(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &E, double &E_sum, double &E_sumsquares, double &E_initial, double (&zero_timeE)[steps], double (&timeE)[steps], double &ExpectationZero_T) {
+    E_sum = 0.0;
+    E_sumsquares = 0.0;
+    total_energy(theta, phi, near_n, E);
+
+    int i, j, k;
+    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
+        for (int a = 0; a < steps; a++) {
+            i = random_index() % L;
+            j = random_index() % L;
+            k = random_index() % L;
+
+            E1 = local_energy(i, j, k, theta, phi, near_n);
+
+            theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
+            phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal() * pi);
+
+
+            E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
+
+            dE = E2 - E1;
+            if (random_decimal() <= exp(std::min(0.0, (((-J) / (k_B * T)) * dE)))) {
+                theta[i][j][k] = theta_trial[i][j][k];
+                phi[i][j][k] = phi_trial[i][j][k];
+            }
+
+            total_energy(theta, phi, near_n, E);
+            E_sum += E;
+            E_sumsquares += (E*E);
+            timeE[a] = E;
+        }
+        ExpectationZero_T = 0.0;
+        for(int l = 0; l < steps; l++){
+            ExpectationZero_T += (timeE[l]*zero_timeE[l]);
+        }
+        E_initial = E_sum;
+        for(int l = 0; l < steps; l++) {
+            zero_timeE[l] = timeE[l];
+        }
+    }
