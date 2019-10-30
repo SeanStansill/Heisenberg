@@ -13,6 +13,7 @@ int main() {
 
     double theta[L][L][L], phi[L][L][L], E, T = T_init, E_sum, E_sumsquares, C, Mx, My, Mz, M, M_sum, M_sumsquares, chi;
     int near_n[L][2];
+    write_N(N);
 
     get_nearest_neighbours(near_n);
 
@@ -28,18 +29,20 @@ int main() {
 
     //thermalize(theta, phi, near_n, T);
     for (int b = 0; b < T_intervals; b++) {
-        thermalize(theta, phi, near_n, T);
+        //thermalize(theta, phi, near_n, T);
+        thermalize_typewriter(theta, phi, near_n, T);
 
         //initial_corr(theta, phi, near_n, T, E, E_sum, E_sumsquares, E_initial, zero_timeE, timeE, ExpectationZero_T);
         //MC_loopautocorr(theta, phi, near_n, T, E, E_sum, E_sumsquares, E_initial, zero_timeE, timeE, ExpectationZero_T, Corr);
 
-        MC_loop(theta, phi, near_n, T, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares);
+        MC_loop(theta, phi, near_n, T, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares, b);
 
         heat_cap(C, E_sum, E_sumsquares, T);
         write_C(C);
         susceptibility(chi, M_sum, M_sumsquares, T);
         write_chi(chi);
 
+        magnetization(theta, phi, Mx, My, Mz, M);
         write_M(Mx, My, Mz, M);
 
         write_E(E);

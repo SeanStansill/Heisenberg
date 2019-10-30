@@ -6,6 +6,7 @@
 #include"constants.h"
 #include <cmath>
 #include <algorithm>
+#include <cstdio>
 
 std::random_device generator;
 std::mt19937 rng(generator());
@@ -18,6 +19,50 @@ void write_E(const double E) {
     myfile.close();
 }
 
+void write_M(const double Mx, const double My, const double Mz, const double M){
+    myfile.open("mag_x.txt", std::ios::app);
+    myfile << Mx << std::endl;
+    myfile.close();
+
+    myfile.open("mag_y.txt", std::ios::app);
+    myfile << My << std::endl;
+    myfile.close();
+
+    myfile.open("mag_z.txt", std::ios::app);
+    myfile << Mz << std::endl;
+    myfile.close();
+
+    myfile.open("mag.txt", std::ios::app);
+    myfile << M << std::endl;
+    myfile.close();
+}
+
+void write_totalE(const double E, const int num){
+    std::string name = "energy_sweep" + std::to_string(num) + ".txt";
+    myfile.open(name, std::ios::app);
+    myfile << E << std::endl;
+    myfile.close();
+}
+
+void write_mag(const double Mx, const double My, const double Mz, const double M, const int num){
+    std::string name = "mag_sweep" + std::to_string(num) + ".txt";
+    myfile.open(name, std::ios::app);
+    myfile << M << std::endl;
+    myfile.close();
+}
+
+void write_N(const int N){
+    myfile.open("N.txt", std::ios::app);
+    myfile << N << std::endl;
+    myfile.close();
+}
+
+void write_Eloop(const double E, const std::string name){
+
+    myfile.open(name, std::ios::app);
+    myfile << E << std::endl;
+    myfile.close();
+}
 
 void get_nearest_neighbours(int (&near_n)[L][2]){
     for (int l = 0; l < L; l++) {
@@ -34,15 +79,22 @@ int random_index(){
 }
 
 double random_decimal(){
-    std::uniform_real_distribution<double> decimal(0.0, 1.0*pi);
+    std::uniform_real_distribution<double> decimal(-1.0*pi, 1.0*pi);
     double dec = decimal(rng);
     return dec;
 }
 
 double random_ZeroTwo(){
-    std::uniform_real_distribution<double> ZeroTwo(0.0, 2*pi);
+    std::uniform_real_distribution<double> ZeroTwo(-2.0*pi, 2.0*pi);
     double angle = ZeroTwo(rng);
     return angle;
+
+}
+
+double random_uniform(){
+    std::uniform_real_distribution<> uniform_distribution(0.0, 1.0);
+    double num = uniform_distribution(rng);
+    return num;
 
 }
 
@@ -84,10 +136,11 @@ void magnetization(double theta[L][L][L], double phi[L][L][L], double &Mx, doubl
             }
         }
     }
+    M = sqrt((Mx*Mx) + (My*My) + (Mz*Mz));
     Mx = (Mx/N);
     My = (My/N);
     Mz = (Mz/N);
-    M = sqrt((Mx*Mx) + (My*My) + (Mz*Mz));
+    M = M/N;
 }
 
 void susceptibility(double &chi, const double M_sum, const double M_sumsquares, const double T){
@@ -144,6 +197,7 @@ void heat_cap(double &C, const double E_sum, const double E_sumsquares, const do
 }
 
 void thermalize(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T){
+    double Mx, My, Mz, M;
     int i, j, k;
     double Et;
     double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
@@ -154,30 +208,43 @@ void thermalize(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near
 
         E1 = local_energy(i, j, k, theta, phi, near_n);
 
-        theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
-        phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal() * pi);
+        theta_trial[i][j][k] = 2.0*pi*random_uniform(); //theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
+        phi_trial[i][j][k] = std::acos((2.0*random_uniform()) - 1); //phi[i][j][k] + (0.05 * random_decimal() * pi);
+
+        //std::cout << phi_trial[i][j][k] << std::endl;
+
 
         E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
 
         dE = E2 - E1;
-        if(random_decimal() <= exp(std::min(0.0, -dE/T))){
+        //std::cout << dE << std::endl;
+        if(dE < 0){
             theta[i][j][k] = theta_trial[i][j][k];
             phi[i][j][k] = phi_trial[i][j][k];
         }
-        /*total_energy(theta, phi, near_n, Et);
-        myfile.open("trial.txt", std::ios::app);
-        myfile << Et << std::endl;
-        myfile.close();*/
+        else if(random_uniform() < exp(std::min(0.0, -dE/T))){
+            theta[i][j][k] = theta_trial[i][j][k];
+            phi[i][j][k] = phi_trial[i][j][k];
+            //std::cout << "Accepted" << std::endl;
+        }
+        //total_energy(theta, phi, near_n, Et);
+        //myfile.open("trial.txt", std::ios::app);
+        //myfile << Et << std::endl;
+        //myfile.close();
+        //magnetization(theta, phi, Mx, My, Mz, M);
+        //myfile.open("mag_therm.txt", std::ios::app);
+        //myfile << M << std::endl;
+        //myfile.close();
     }
 }
 
-void MC_loop(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &E, double &E_sum, double &E_sumsquares, double &Mx, double &My, double &Mz, double &M, double &M_sum, double &M_sumsquares){
+void MC_loop(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &E, double &E_sum, double &E_sumsquares, double &Mx, double &My, double &Mz, double &M, double &M_sum, double &M_sumsquares, const int b) {
     E_sum = 0.0;
     E_sumsquares = 0.0;
     M_sum = 0.0;
     M_sumsquares = 0.0;
     int i, j, k, counter = 0;
-    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
+    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {}, moves_accepted = 0.0;
     for (int a = 0; a < nsteps; a++) {
         i = random_index() % L;
         j = random_index() % L;
@@ -185,33 +252,88 @@ void MC_loop(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[
 
         E1 = local_energy(i, j, k, theta, phi, near_n);
 
-        theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
-        phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal() * pi);
-
+        theta_trial[i][j][k] = 2.0*pi*random_uniform(); //theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
+        phi_trial[i][j][k] = std::acos((2.0*random_uniform()) - 1); //phi[i][j][k] + (0.05 * random_decimal() * pi);
 
 
         E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
 
         dE = E2 - E1;
-        if(random_decimal() <= exp(std::min(0.0, -dE/T))){
+        if (random_uniform() <= exp(std::min(0.0, -dE / T))) {
             theta[i][j][k] = theta_trial[i][j][k];
             phi[i][j][k] = phi_trial[i][j][k];
+            moves_accepted += 1.0;
         }
 
-        if(a % 5 == 0) {
-            total_energy(theta, phi, near_n, E);
+        total_energy(theta, phi, near_n, E);
+        write_totalE(E, b + 1);
+        magnetization(theta, phi, Mx, My, Mz, M);
+        write_mag(Mx, My, Mz, M, b+1);
+        //total_energy(theta, phi, near_n, E);
+        //std::string name = "energy_" + std::to_string(a) + ".txt";
+        //write_Eloop(E, name);
+
+        if (a % 5 == 0) {
+            //total_energy(theta, phi, near_n, E);
             E_sum += E;
             E_sumsquares += (E * E);
-            magnetization(theta, phi, Mx, My, Mz, M);
+            //magnetization(theta, phi, Mx, My, Mz, M);
             M_sum += M;
-            M_sumsquares += (M*M);
+            M_sumsquares += (M * M);
             counter++;
         }
     }
-    E_sum = E_sum/counter;
-    E_sumsquares = E_sumsquares/counter;
-    M_sum = M_sum/counter;
-    M_sumsquares = M_sum/counter;
+    E_sum = E_sum / counter;
+    E_sumsquares = E_sumsquares / counter;
+    M_sum = M_sum / counter;
+    M_sumsquares = M_sum / counter;
+    myfile.open("acceptance.txt", std::ios::app);
+    myfile << moves_accepted/nsteps << std::endl;
+    myfile.close();
+//}
+}
+
+void thermalize_typewriter(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T){
+    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
+    for (int a = 0; a < thermalsteps; a++) {
+        for (int i = 0; i < L; i++) {
+            for (int j = 0; j < L; j++) {
+                for (int k = 0; k < L; k++) {
+
+                    E1 = local_energy(i, j, k, theta, phi, near_n);
+
+                    theta_trial[i][j][k] =
+                            2.0 * pi * random_uniform(); //theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
+                    phi_trial[i][j][k] = std::acos(
+                            (2.0 * random_uniform()) - 1); //phi[i][j][k] + (0.05 * random_decimal() * pi);
+
+                    //std::cout << phi_trial[i][j][k] << std::endl;
+
+
+                    E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
+
+                    dE = E2 - E1;
+                    //std::cout << dE << std::endl;
+                    if (dE < 0) {
+                        theta[i][j][k] = theta_trial[i][j][k];
+                        phi[i][j][k] = phi_trial[i][j][k];
+                    } else if (random_uniform() < exp(std::min(0.0, -dE / T))) {
+                        theta[i][j][k] = theta_trial[i][j][k];
+                        phi[i][j][k] = phi_trial[i][j][k];
+                        //std::cout << "Accepted" << std::endl;
+                    }
+                    //total_energy(theta, phi, near_n, Et);
+                    //myfile.open("trial.txt", std::ios::app);
+                    //myfile << Et << std::endl;
+                    //myfile.close();
+                    //magnetization(theta, phi, Mx, My, Mz, M);
+                    //myfile.open("mag_therm.txt", std::ios::app);
+                    //myfile << M << std::endl;
+                    //myfile.close();
+                }
+            }
+        }
+    }
 }
 
 void iterate_T(double &T){
@@ -221,23 +343,7 @@ void iterate_T(double &T){
     T += T_step;
 }
 
-void write_M(const double Mx, const double My, const double Mz, const double M){
-    myfile.open("mag_x.txt", std::ios::app);
-    myfile << Mx << std::endl;
-    myfile.close();
 
-    myfile.open("mag_y.txt", std::ios::app);
-    myfile << My << std::endl;
-    myfile.close();
-
-    myfile.open("mag_z.txt", std::ios::app);
-    myfile << Mz << std::endl;
-    myfile.close();
-
-    myfile.open("mag.txt", std::ios::app);
-    myfile << M << std::endl;
-    myfile.close();
-}
 
 
 
@@ -269,13 +375,13 @@ void thermal_lattice(double (&theta)[L][L][L], double (&phi)[L][L][L], const int
 
                     E1 = local_energy(l, m, n, theta, phi, near_n);
 
-                    theta_trial[l][m][n] = theta[l][m][n] + (0.05 * random_ZeroTwo() * pi);
-                    phi_trial[l][m][n] = phi[l][m][n] + (0.05 * random_decimal() * pi);
+                    theta_trial[l][m][n] = theta[l][m][n] + (0.05 * random_ZeroTwo());
+                    phi_trial[l][m][n] = phi[l][m][n] + (0.05 * random_decimal());
 
                     E2 = new_local_energy(l, m, n, theta, phi, near_n, theta_trial, phi_trial);
 
                     dE = E2 - E1;
-                    if (random_decimal() <= exp(std::min(0.0, (((-J) / (k_B * T)) * dE)))) {
+                    if (random_uniform() <= exp(std::min(0.0, (((-J) / (k_B * T)) * dE)))) {
                         theta[l][m][n] = theta_trial[l][m][n];
                         phi[l][m][n] = phi_trial[l][m][n];
                     }
@@ -301,14 +407,14 @@ void MC_loopautocorr(double (&theta)[L][L][L], double (&phi)[L][L][L], const int
 
             E1 = local_energy(i, j, k, theta, phi, near_n);
 
-            theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
-            phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal() * pi);
+            theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo());
+            phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal());
 
 
             E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
 
             dE = E2 - E1;
-            if (random_decimal() <= exp(std::min(0.0, -dE/T))){
+            if (random_uniform() <= exp(std::min(0.0, -dE/T))){
                 theta[i][j][k] = theta_trial[i][j][k];
                 phi[i][j][k] = phi_trial[i][j][k];
             }
@@ -339,14 +445,14 @@ void initial_corr(double (&theta)[L][L][L], double (&phi)[L][L][L], const int ne
 
             E1 = local_energy(i, j, k, theta, phi, near_n);
 
-            theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
-            phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal() * pi);
+            theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo());
+            phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal());
 
 
             E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
 
             dE = E2 - E1;
-            if (random_decimal() <= exp(std::min(0.0, -dE/T))){
+            if (random_uniform() <= exp(std::min(0.0, -dE/T))){
                 theta[i][j][k] = theta_trial[i][j][k];
                 phi[i][j][k] = phi_trial[i][j][k];
             }
