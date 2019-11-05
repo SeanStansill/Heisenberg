@@ -154,7 +154,7 @@ void local_M(const double theta, const double phi, const double theta_trial, con
 }
 
 void susceptibility(double &chi, const double M_sum, const double M_sumsquares, const double T){
-    chi = (M_sumsquares-M_sum)/(T*T);
+    chi = (M_sumsquares-(M_sum*M_sum))/(T*T);
 }
 
 
