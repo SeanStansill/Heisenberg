@@ -5,14 +5,10 @@
 #include <cmath>
 
 int main() {
-    double E_initial = 0;
-    double zero_timeE[steps] = {};
-    double timeE[steps] = {};
-    double ExpectationZero_T;
-    double Corr = 10;
 
-    double theta[L][L][L], phi[L][L][L], E, T = T_init, E_sum, E_sumsquares, C, Mx, My, Mz, M, M_sum, M_sumsquares, chi;
+    double theta[L][L][L], phi[L][L][L], E, T = T_init, E_sum, E_sumsquares, C, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, chi, dSx, dSy, dSz, dS;
     int near_n[L][2];
+
     write_N(N);
 
     get_nearest_neighbours(near_n);
@@ -26,16 +22,14 @@ int main() {
 
     total_energy(theta, phi, near_n, E);
     write_E(E);
+    //thermalize_typewriter(theta, phi, near_n, T); // For random state, initial thermalisation will take much longer than after reaching saturation
+    //Note to Old Self: It doesn't take that long as 50000 sweeps is sufficient to ensure the state is saturated at low T
 
-    //thermalize(theta, phi, near_n, T);
     for (int b = 0; b < T_intervals; b++) {
-        //thermalize(theta, phi, near_n, T);
         thermalize_typewriter(theta, phi, near_n, T);
 
-        //initial_corr(theta, phi, near_n, T, E, E_sum, E_sumsquares, E_initial, zero_timeE, timeE, ExpectationZero_T);
-        //MC_loopautocorr(theta, phi, near_n, T, E, E_sum, E_sumsquares, E_initial, zero_timeE, timeE, ExpectationZero_T, Corr);
-
-        MC_loop(theta, phi, near_n, T, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares, b);
+        //MC_loop(theta, phi, near_n, T, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, b, dSx, dSy, dSz, dS);
+        MC_typewriter(theta, phi, near_n, T, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, b, dSx, dSy, dSz, dS);
 
         heat_cap(C, E_sum, E_sumsquares, T);
         write_C(C);

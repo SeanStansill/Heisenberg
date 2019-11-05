@@ -122,7 +122,7 @@ void uniform_spin_state(double (&theta)[L][L][L], double (&phi)[L][L][L]){
     }
 }
 
-void magnetization(double theta[L][L][L], double phi[L][L][L], double &Mx, double &My, double &Mz, double &M){
+void magnetization(const double theta[L][L][L], const double phi[L][L][L], double &Mx, double &My, double &Mz, double &M){
     Mx = 0.0;
     My = 0.0;
     Mz = 0.0;
@@ -136,11 +136,21 @@ void magnetization(double theta[L][L][L], double phi[L][L][L], double &Mx, doubl
             }
         }
     }
-    M = sqrt((Mx*Mx) + (My*My) + (Mz*Mz));
     Mx = (Mx/N);
     My = (My/N);
     Mz = (Mz/N);
-    M = M/N;
+    M = sqrt((Mx*Mx) + (My*My) + (Mz*Mz));
+}
+
+void local_M(const double theta, const double phi, const double theta_trial, const double phi_trial, double &dSx, double &dSy, double &dSz, double &dS){
+    dSx = 0.0;
+    dSy = 0.0;
+    dSz = 0.0;
+    dS = 0.0;
+    dSx = (cos(theta_trial) * sin(phi_trial)) - (cos(theta) * sin(phi));
+    dSy = (sin(theta_trial) * sin(phi_trial)) - (sin(theta) * sin(phi));
+    dSz = cos(phi_trial) - cos(phi);
+    dS = dSx + dSy + dSz;
 }
 
 void susceptibility(double &chi, const double M_sum, const double M_sumsquares, const double T){
@@ -189,62 +199,32 @@ void total_energy(const double theta[L][L][L], const double phi[L][L][L], const 
             }
         }
     }
-    E = E/N;
+    //E = E/N;
 }
 
 void heat_cap(double &C, const double E_sum, const double E_sumsquares, const double T){
     C = (E_sumsquares - (E_sum*E_sum))/(T*T);
 }
 
-void thermalize(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T){
-    double Mx, My, Mz, M;
-    int i, j, k;
-    double Et;
-    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
-    for (int a = 0; a < thermalsteps; a++) {
-        i = random_index() % L;
-        j = random_index() % L;
-        k = random_index() % L;
+void Binder(double &M_sumsquares, double &M_sumfour){
 
-        E1 = local_energy(i, j, k, theta, phi, near_n);
+    double U = 1.0 - (M_sumfour / (3 * M_sumsquares * M_sumsquares));
 
-        theta_trial[i][j][k] = 2.0*pi*random_uniform(); //theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
-        phi_trial[i][j][k] = std::acos((2.0*random_uniform()) - 1); //phi[i][j][k] + (0.05 * random_decimal() * pi);
-
-        //std::cout << phi_trial[i][j][k] << std::endl;
-
-
-        E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
-
-        dE = E2 - E1;
-        //std::cout << dE << std::endl;
-        if(dE < 0){
-            theta[i][j][k] = theta_trial[i][j][k];
-            phi[i][j][k] = phi_trial[i][j][k];
-        }
-        else if(random_uniform() < exp(std::min(0.0, -dE/T))){
-            theta[i][j][k] = theta_trial[i][j][k];
-            phi[i][j][k] = phi_trial[i][j][k];
-            //std::cout << "Accepted" << std::endl;
-        }
-        //total_energy(theta, phi, near_n, Et);
-        //myfile.open("trial.txt", std::ios::app);
-        //myfile << Et << std::endl;
-        //myfile.close();
-        //magnetization(theta, phi, Mx, My, Mz, M);
-        //myfile.open("mag_therm.txt", std::ios::app);
-        //myfile << M << std::endl;
-        //myfile.close();
-    }
+    myfile.open("binder.txt", std::ios::app);
+    myfile << U << std::endl;
+    myfile.close();
 }
 
-void MC_loop(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &E, double &E_sum, double &E_sumsquares, double &Mx, double &My, double &Mz, double &M, double &M_sum, double &M_sumsquares, const int b) {
+
+void MC_loop(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &E, double &E_sum, double &E_sumsquares, double &Mx, double &My, double &Mz, double &M, double &M_sum, double &M_sumsquares, double &M_sumfour, const int b, double &Sx, double &Sy, double &Sz, double &S) {
     E_sum = 0.0;
     E_sumsquares = 0.0;
     M_sum = 0.0;
     M_sumsquares = 0.0;
+    M_sumfour = 0.0;
     int i, j, k, counter = 0;
-    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {}, moves_accepted = 0.0;
+    double E1, E2, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {}, moves_accepted = 0.0;
+    double dE = 0.0;
     for (int a = 0; a < nsteps; a++) {
         i = random_index() % L;
         j = random_index() % L;
@@ -263,33 +243,99 @@ void MC_loop(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[
             theta[i][j][k] = theta_trial[i][j][k];
             phi[i][j][k] = phi_trial[i][j][k];
             moves_accepted += 1.0;
+            //local_M(theta[i][j][k], phi[i][j][k], Sx, Sy, Sz, S);
+            //E = ((E*N) + dE)/N;
+            //Mx = ((Mx*N) + Sx)/N;
+            //My = ((My*N) + Sy)/N;
+            //Mz = ((Mz*N) + Sz)/N;
+            //M = sqrt((Mx*Mx) + (My*My) + (Mz*Mz));
         }
 
-        total_energy(theta, phi, near_n, E);
-        write_totalE(E, b + 1);
-        magnetization(theta, phi, Mx, My, Mz, M);
-        write_mag(Mx, My, Mz, M, b+1);
-        //total_energy(theta, phi, near_n, E);
-        //std::string name = "energy_" + std::to_string(a) + ".txt";
-        //write_Eloop(E, name);
 
-        if (a % 5 == 0) {
-            //total_energy(theta, phi, near_n, E);
+        if (a % 1 == 0) {
+            total_energy(theta, phi, near_n, E);  // Will become obsolete once local updates are implemented
             E_sum += E;
             E_sumsquares += (E * E);
-            //magnetization(theta, phi, Mx, My, Mz, M);
+            magnetization(theta, phi, Mx, My, Mz, M); // Will become obsolete once local updates are implemented
             M_sum += M;
             M_sumsquares += (M * M);
+            M_sumfour += (M * M * M * M);
             counter++;
         }
     }
     E_sum = E_sum / counter;
     E_sumsquares = E_sumsquares / counter;
     M_sum = M_sum / counter;
-    M_sumsquares = M_sum / counter;
+    M_sumsquares = M_sumsquares / counter;
+    M_sumfour = M_sumfour / counter;
     myfile.open("acceptance.txt", std::ios::app);
     myfile << moves_accepted/nsteps << std::endl;
     myfile.close();
+    Binder(M_sumsquares, M_sumfour);
+//}
+}
+
+void MC_typewriter(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &E, double &E_sum, double &E_sumsquares, double &Mx, double &My, double &Mz, double &M, double &M_sum, double &M_sumsquares, double &M_sumfour, const int b, double &dSx, double &dSy, double &dSz, double &dS) {
+    E_sum = 0.0;
+    E_sumsquares = 0.0;
+    M_sum = 0.0;
+    M_sumsquares = 0.0;
+    M_sumfour = 0.0;
+    int i, j, k, counter = 0;
+    double E1, E2, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {}, moves_accepted = 0.0;
+    double dE = 0.0;
+    for (int a = 0; a < sweeps; a++) {
+        for (int i = 0; i < L; i++) {
+            for (int j = 0; j < L; j++) {
+                for (int k = 0; k < L; k++) {
+
+                    E1 = local_energy(i, j, k, theta, phi, near_n);
+
+                    theta_trial[i][j][k] =
+                            2.0 * pi * random_uniform(); //theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
+                    phi_trial[i][j][k] = std::acos(
+                            (2.0 * random_uniform()) - 1); //phi[i][j][k] + (0.05 * random_decimal() * pi);
+
+
+                    E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
+
+                    dE = E2 - E1;
+                    if (random_uniform() <= exp(std::min(0.0, -dE / T))) {
+                        //local_M(theta[i][j][k], phi[i][j][k], theta_trial[i][j][k], phi_trial[i][j][k], dSx, dSy, dSz, dS);
+                        //E = E + dE;
+                        //Mx = ((Mx*N) + dSx)/N;
+                        //My = ((My*N) + dSy)/N;
+                        //Mz = ((Mz*N) + dSz)/N;
+                        //M = sqrt((Mx*Mx) + (My*My) + (Mz*Mz));
+                        theta[i][j][k] = theta_trial[i][j][k];
+                        phi[i][j][k] = phi_trial[i][j][k];
+                        moves_accepted += 1.0;
+                    }
+
+
+                    if (a % 5 == 0) {
+                        total_energy(theta, phi, near_n, E);  // Will become obsolete once local updates are implemented
+                        E_sum += E;
+                        E_sumsquares += (E * E);
+                        magnetization(theta, phi, Mx, My, Mz,M); // Will become obsolete once local updates are implemented
+                        M_sum += M;
+                        M_sumsquares += (M * M);
+                        M_sumfour += (M * M * M * M);
+                        counter++;
+                    }
+                }
+            }
+        }
+    }
+    E_sum = E_sum / counter;
+    E_sumsquares = E_sumsquares / counter;
+    M_sum = M_sum / counter;
+    M_sumsquares = M_sumsquares / counter;
+    M_sumfour = M_sumfour / counter;
+    myfile.open("acceptance.txt", std::ios::app);
+    myfile << moves_accepted/nsteps << std::endl;
+    myfile.close();
+    Binder(M_sumsquares, M_sumfour);
 //}
 }
 
@@ -302,34 +348,23 @@ void thermalize_typewriter(double (&theta)[L][L][L], double (&phi)[L][L][L], con
 
                     E1 = local_energy(i, j, k, theta, phi, near_n);
 
-                    theta_trial[i][j][k] =
-                            2.0 * pi * random_uniform(); //theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
-                    phi_trial[i][j][k] = std::acos(
-                            (2.0 * random_uniform()) - 1); //phi[i][j][k] + (0.05 * random_decimal() * pi);
+                    theta_trial[i][j][k] = 2.0 * pi * random_uniform();
+                    //theta[i][j][k] + (0.05 * random_ZeroTwo() * pi);
+                    phi_trial[i][j][k] = std::acos((2.0 * random_uniform()) - 1);
+                    //phi[i][j][k] + (0.05 * random_decimal() * pi);
 
-                    //std::cout << phi_trial[i][j][k] << std::endl;
 
 
                     E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
 
                     dE = E2 - E1;
-                    //std::cout << dE << std::endl;
                     if (dE < 0) {
                         theta[i][j][k] = theta_trial[i][j][k];
                         phi[i][j][k] = phi_trial[i][j][k];
                     } else if (random_uniform() < exp(std::min(0.0, -dE / T))) {
                         theta[i][j][k] = theta_trial[i][j][k];
                         phi[i][j][k] = phi_trial[i][j][k];
-                        //std::cout << "Accepted" << std::endl;
                     }
-                    //total_energy(theta, phi, near_n, Et);
-                    //myfile.open("trial.txt", std::ios::app);
-                    //myfile << Et << std::endl;
-                    //myfile.close();
-                    //magnetization(theta, phi, Mx, My, Mz, M);
-                    //myfile.open("mag_therm.txt", std::ios::app);
-                    //myfile << M << std::endl;
-                    //myfile.close();
                 }
             }
         }
@@ -342,11 +377,6 @@ void iterate_T(double &T){
     myfile.close();
     T += T_step;
 }
-
-
-
-
-
 
 void write_C(const double C){
     myfile.open("heat_cap.txt", std::ios::app);
@@ -365,109 +395,3 @@ void write_Corr(const double &Corr){
     myfile << Corr << std::endl;
     myfile.close();
 }
-
-void thermal_lattice(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T) {
-    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
-    for (int a = 0; a < latticesweeps; a++) {
-        for (int l = 0; l < L; l++) {
-            for (int m = 0; m < L; m++) {
-                for (int n = 0; n < L; n++) {
-
-                    E1 = local_energy(l, m, n, theta, phi, near_n);
-
-                    theta_trial[l][m][n] = theta[l][m][n] + (0.05 * random_ZeroTwo());
-                    phi_trial[l][m][n] = phi[l][m][n] + (0.05 * random_decimal());
-
-                    E2 = new_local_energy(l, m, n, theta, phi, near_n, theta_trial, phi_trial);
-
-                    dE = E2 - E1;
-                    if (random_uniform() <= exp(std::min(0.0, (((-J) / (k_B * T)) * dE)))) {
-                        theta[l][m][n] = theta_trial[l][m][n];
-                        phi[l][m][n] = phi_trial[l][m][n];
-                    }
-                }
-            }
-        }
-    }
-}
-
-void MC_loopautocorr(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &E, double &E_sum, double &E_sumsquares, double &E_initial, double (&zero_timeE)[steps], double (&timeE)[steps], double &ExpectationZero_T, double &Corr) {
-    E_sum = 0.0;
-    E_sumsquares = 0.0;
-    Corr = 10.0;
-    total_energy(theta, phi, near_n, E);
-    int i, j, k;
-
-    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
-    while (Corr > (1.0 /(2*exp1))) {
-        for (int a = 0; a < steps; a++) {
-            i = random_index() % L;
-            j = random_index() % L;
-            k = random_index() % L;
-
-            E1 = local_energy(i, j, k, theta, phi, near_n);
-
-            theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo());
-            phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal());
-
-
-            E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
-
-            dE = E2 - E1;
-            if (random_uniform() <= exp(std::min(0.0, -dE/T))){
-                theta[i][j][k] = theta_trial[i][j][k];
-                phi[i][j][k] = phi_trial[i][j][k];
-            }
-
-            total_energy(theta, phi, near_n, E);
-            E_sum += E;
-            E_sumsquares += (E*E);
-            timeE[a] = E;
-        }
-        ExpectationZero_T = 0.0;
-        for(int l = 0; l < steps; l++){
-        ExpectationZero_T += (timeE[l]*zero_timeE[l]);
-        }
-        Corr = ((ExpectationZero_T) - (E_initial*E_sum))/(E_sumsquares - (E_sum*E_sum));
-        write_Corr(Corr);
-    }
-}
-
-void initial_corr(double (&theta)[L][L][L], double (&phi)[L][L][L], const int near_n[L][2], const double T, double &E, double &E_sum, double &E_sumsquares, double &E_initial, double (&zero_timeE)[steps], double (&timeE)[steps], double &ExpectationZero_T) {
-    E_sum = 0.0;
-    E_sumsquares = 0.0;
-    int i, j, k;
-    double E1, E2, dE, theta_trial[L][L][L] = {}, phi_trial[L][L][L] = {};
-        for (int a = 0; a < steps; a++) {
-            i = random_index() % L;
-            j = random_index() % L;
-            k = random_index() % L;
-
-            E1 = local_energy(i, j, k, theta, phi, near_n);
-
-            theta_trial[i][j][k] = theta[i][j][k] + (0.05 * random_ZeroTwo());
-            phi_trial[i][j][k] = phi[i][j][k] + (0.05 * random_decimal());
-
-
-            E2 = new_local_energy(i, j, k, theta, phi, near_n, theta_trial, phi_trial);
-
-            dE = E2 - E1;
-            if (random_uniform() <= exp(std::min(0.0, -dE/T))){
-                theta[i][j][k] = theta_trial[i][j][k];
-                phi[i][j][k] = phi_trial[i][j][k];
-            }
-
-            total_energy(theta, phi, near_n, E);
-            E_sum += E;
-            E_sumsquares += (E*E);
-            timeE[a] = E;
-        }
-        ExpectationZero_T = 0.0;
-        for(int l = 0; l < steps; l++){
-            ExpectationZero_T += (timeE[l]*zero_timeE[l]);
-        }
-        E_initial = E_sum;
-        for(int l = 0; l < steps; l++) {
-            zero_timeE[l] = timeE[l];
-        }
-    }
