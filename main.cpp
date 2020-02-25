@@ -1,48 +1,52 @@
 
 #include "constants.h"
 #include "functions.h"
-#include <vector>
-#include <cmath>
+#include <omp.h>
+#include <iostream>
 
 int main() {
 
-    double theta[L][L][L], phi[L][L][L], E, T = T_init, E_sum, E_sumsquares, C, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, chi, dSx, dSy, dSz, dS;
-    int near_n[L][2];
+    double theta[N], phi[N], E, T, E_sum, E_sumsquares, C, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, chi, moves_accepted;
+    int up[N], down[N], left[N], right[N], backwards[N], forwards[N];
 
     write_N(N);
 
-    get_nearest_neighbours(near_n);
+    get_nearest_neighbours(up, down, left, right, backwards, forwards);
 
-    //random_spin_state(theta, phi);
-    uniform_spin_state(theta, phi);
+    int n = omp_get_num_procs();
+    omp_set_num_threads(n-1); // n-1 so that when running locally the OS is still snappy and can access a decent amount of power
+#pragma omp parallel default(none) private(theta, phi, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, chi, T, C, moves_accepted, up, down, left, right, backwards, forwards)
+{
+#pragma omp for schedule(dynamic)
+        for (int b = 0; b < T_intervals; b++) {
+            random_spin_state(theta, phi);
+            T = T_init + (b * T_step);
+            thermalize_parallel(theta, phi, up, down, left, right, backwards, forwards, T);
 
+            magnetization(theta, phi, Mx, My, Mz, M);
+            total_energy(theta, phi, up, down, left, right, backwards, forwards, E);
 
-    magnetization(theta, phi, Mx, My, Mz, M);
-    write_M(Mx, My, Mz, M);
+            MC_parallel(theta, phi, up, down, left, right, backwards, forwards, T, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, b, moves_accepted);
 
-    total_energy(theta, phi, near_n, E);
-    write_E(E);
-    //thermalize_typewriter(theta, phi, near_n, T); // For random state, initial thermalisation will take much longer than after reaching saturation
-    //Note to Old Self: It doesn't take that long as 50000 sweeps is sufficient to ensure the state is saturated at low T
+#pragma omp critical
+            {
+                acceptance(moves_accepted);
+                Binder(M_sumsquares, M_sumfour);
 
-    for (int b = 0; b < T_intervals; b++) {
-        thermalize_typewriter(theta, phi, near_n, T);
+                heat_cap(C, E_sum, E_sumsquares, T);
+                write_C(C);
+                susceptibility(chi, M_sum, M_sumsquares, T);
+                write_chi(chi);
 
-        //MC_loop(theta, phi, near_n, T, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, b, dSx, dSy, dSz, dS);
-        MC_typewriter(theta, phi, near_n, T, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, b, dSx, dSy, dSz, dS);
+                write_M(Mx, My, Mz, M_sum);
 
-        heat_cap(C, E_sum, E_sumsquares, T);
-        write_C(C);
-        susceptibility(chi, M_sum, M_sumsquares, T);
-        write_chi(chi);
+                write_E(E_sum);
 
-        magnetization(theta, phi, Mx, My, Mz, M);
-        write_M(Mx, My, Mz, M);
-
-        write_E(E);
-
-        iterate_T(T);
+                iterate_T(T);
+            }
+        }
     }
+    return 0;
 }
 
 //fftw instead of autocorrelation
