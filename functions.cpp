@@ -5,8 +5,10 @@
 #include <random>
 #include"constants.h"
 #include "functions.h"
+
 #include <cmath>
 #include <algorithm>
+#include <cstdio>
 #include <fstream>
 
 std::ofstream myfile;
@@ -19,25 +21,25 @@ void acceptance(const double moves_accepted){
 
 void write_E(const double E) {
     myfile.open("energy.txt", std::ios::app);
-    myfile << E/N << std::endl;
+    myfile << E << std::endl;
     myfile.close();
 }
 
 void write_M(const double Mx, const double My, const double Mz, const double M){
     myfile.open("mag_x.txt", std::ios::app);
-    myfile << Mx/N << std::endl;
+    myfile << Mx << std::endl;
     myfile.close();
 
     myfile.open("mag_y.txt", std::ios::app);
-    myfile << My/N << std::endl;
+    myfile << My << std::endl;
     myfile.close();
 
     myfile.open("mag_z.txt", std::ios::app);
-    myfile << Mz/N << std::endl;
+    myfile << Mz << std::endl;
     myfile.close();
 
     myfile.open("mag.txt", std::ios::app);
-    myfile << M/N << std::endl;
+    myfile << M << std::endl;
     myfile.close();
 }
 
@@ -150,7 +152,7 @@ void single_spin_M(const double &theta, const double &phi, double &Mx, double &M
 }
 
 void susceptibility(double &chi, const double M_sum, const double M_sumsquares, const double T){
-    chi = (M_sumsquares-(M_sum*M_sum))/(T*T*N);
+    chi = (M_sumsquares-(M_sum*M_sum))/(T*T);
 }
 
 double single_spin_energy(const int i, const double (&theta)[N], const double (&phi)[N], const int (&up)[N], const int (&down)[N], const int (&left)[N], const int (&right)[N], const int (&backwards)[N], const int (&forwards)[N]){
@@ -197,7 +199,7 @@ void total_energy(const double (&theta)[N], const double (&phi)[N], const int (&
 }
 
 void heat_cap(double &C, const double E_sum, const double E_sumsquares, const double T){
-    C = (E_sumsquares - (E_sum*E_sum))/(T*T*N);
+    C = (E_sumsquares - (E_sum*E_sum))/(T*T);
 }
 
 void Binder(const double &M_sumsquares, const double &M_sumfour){
@@ -239,7 +241,7 @@ void MC_parallel(double (&theta)[N], double (&phi)[N], const int (&up)[N], const
 
                     dE = E2 - E1;
 
-                    if (random_uniform() <= exp(std::min(0.0, -dE /(k_B * T)))) {
+                    if (random_uniform() <= exp(std::min(0.0, -dE / T))) {
                         E = E + dE;
                         single_spin_M(theta[i], phi[i], Mx1, My1, Mz1);
                         single_spin_M(theta_trial[i], phi_trial[i], Mx2, My2, Mz2);
@@ -293,7 +295,7 @@ void thermalize_parallel(double (&theta)[N], double (&phi)[N], const int (&up)[N
                     E2 = local_energy(i, theta_trial, phi_trial, up, down, left, right, backwards, forwards);
 
                     dE = E2 - E1;
-                    if (random_uniform() <= exp(std::min(0.0, -dE /(k_B * T)))) {
+                    if (random_uniform() <= exp(std::min(0.0, -dE / T))) {
                         theta[i] = theta_trial[i];
                         phi[i] = phi_trial[i];
                     }
