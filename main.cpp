@@ -22,7 +22,7 @@ int main() {
 
 
     int n = omp_get_num_procs();
-    omp_set_num_threads(n-1); // n-1 so that when running locally the OS is still snappy and can access a decent amount of power
+    omp_set_num_threads(n/2); // n-1 so that when running locally the OS is still snappy and can access a decent amount of power
 #pragma omp parallel default(none) shared(up, down, left, right, backwards, forwards) private(theta, phi, E, E_sum, E_sumsquares, Mx, My, Mz, M, M_sum, M_sumsquares, M_sumfour, chi, T, C, moves_accepted)
 {
 #pragma omp for schedule(dynamic)
